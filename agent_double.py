@@ -13,6 +13,9 @@ from config import *
 import os
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# TODO - https://github.com/yutong-xie/CS498-DL-Assignment/blob/master/assignment5/agent_double.py
+# TODO - https://github.com/WangLuning/CS498-intro-deep-learning/blob/master/Assignment5/agent.py
+# TODO - https://github.com/tp5uiuc/cs498dl
 
 class Agent():
     def __init__(self, action_size):
@@ -39,6 +42,9 @@ class Agent():
 
         # Initialize a target network and initialize the target network to the policy net
         ### CODE ###
+        self.target_net = DQN(action_size)
+        self.target_net.load_state_dict(self.policy_net.state_dict())
+        self.target_net.to(device)
 
 
     def load_policy_net(self, path):
@@ -47,17 +53,20 @@ class Agent():
     # after some time interval update the target net to be same with policy net
     def update_target_net(self):
         ### CODE ###
+        self.target_net.load_state_dict(self.polic_net.state_dict())
 
 
     """Get action using policy net using epsilon-greedy policy"""
     def get_action(self, state):
         if np.random.rand() <= self.epsilon:
             ### CODE #### (copy over from agent.py!)
-
+            action = torch.tensor([[random.randrange(self.action_size)]],
+                             device=device, dtype=torch.long)
         else:
             ### CODE #### (copy over from agent.py!)
+            action = self.policy_net(torch.from_numpy(state)).max(1)[1].view(1, 1)
 
-        return a
+        return action
 
     # pick samples randomly from replay memory (with batch_size)
     def train_policy_net(self, frame):
@@ -78,7 +87,30 @@ class Agent():
         dones = mini_batch[3] # checks if the game is over
         musk = torch.tensor(list(map(int, dones==False)),dtype=torch.uint8)
         
-        # Your agent.py code here with double DQN modifications
-        ### CODE ###
+        # Compute Q(s_t, a), the Q-value of the current state
+        state_action_values = self.policy_net(
+            states).gather(1, actions.unsqueeze(1))
+
+        # Compute Q function of next state
+        next_states = torch.from_numpy(next_states).cuda()
+        non_final_next_states = next_states[musk]
+        net_outputs = self.policy_net(non_final_next_states)
+
+        # Find maximum Q-value of action at next state from policy net
+        net_outputs = self.target_net(non_final_next_states)
+        next_states_value = torch.zeros(batch_size).cuda()
+        next_states_value[musk] = net_outputs.max(1)[0].detach()
+
+        # Compute the Huber Loss
+        expected_state_action_values = rewards + self.discount_factor * next_states_value
+        loss = F.smooth_l1_loss(state_action_values,
+                                expected_state_action_values.unsqueeze(1))
+
+        # Optimize the model, .step() both the optimizer and the scheduler!
+        self.optimizer.zero_grad()
+        loss.backward()
+        for param in self.policy_net.parameters():
+            param.grad.data.clamp_(-1, 1)
+        self.optimizer.step()
      
         

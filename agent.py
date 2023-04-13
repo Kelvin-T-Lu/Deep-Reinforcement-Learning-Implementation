@@ -42,15 +42,18 @@ class Agent():
 
     """Get action using policy net using epsilon-greedy policy"""
     def get_action(self, state):
+        
         if np.random.rand() <= self.epsilon:
             ### CODE #### 
             # Choose a random action
+            action = torch.tensor([[random.randrange(self.action_size)]],
+                             device=device, dtype=torch.long)
 
         else:
             ### CODE ####
             # Choose the best action
-
-        return a
+            action = self.policy_net(torch.from_numpy(state)).max(1)[1].view(1, 1)
+        return action
 
     # pick samples randomly from replay memory (with batch_size)
     def train_policy_net(self, frame):
@@ -74,17 +77,33 @@ class Agent():
 
         # Compute Q(s_t, a), the Q-value of the current state
         ### CODE ####
+        state_action_values = self.policy_net(
+            states).gather(1, actions.unsqueeze(1))
 
         # Compute Q function of next state
         ### CODE ####
+        next_states = torch.from_numpy(next_states).cuda()
+        non_final_next_states = next_states[musk == 1]
+        net_outputs = self.policy_net(non_final_next_states)
 
         # Find maximum Q-value of action at next state from policy net
         ### CODE ####
-
+        next_states_value = torch.zeros(batch_size).cuda()
+        next_states_value[musk == 1] = net_outputs.max(1)[0].detach()
         # Compute the Huber Loss
         ### CODE ####
+        expected_state_action_values = rewards + \
+            self.discount_factor * next_states_value
 
+        loss = F.smooth_l1_loss(state_action_values,
+                                expected_state_action_values.unsqueeze(1))
         # Optimize the model, .step() both the optimizer and the scheduler!
         ### CODE ####
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        for param in self.policy_net.parameters():
+            param.grad.data.clamp_(-1, 1)
+        self.optimizer.step()
 
 
