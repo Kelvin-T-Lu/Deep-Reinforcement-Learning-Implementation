@@ -77,33 +77,64 @@ class Agent():
 
         # Compute Q(s_t, a), the Q-value of the current state
         ### CODE ####
-        state_action_values = self.policy_net(
-            states).gather(1, actions.unsqueeze(1))
+        # state_action_values = self.policy_net(
+            # states).gather(1, actions.unsqueeze(1))
 
         # Compute Q function of next state
         ### CODE ####
-        next_states = torch.from_numpy(next_states).cuda()
-        non_final_next_states = next_states[musk == 1]
-        net_outputs = self.policy_net(non_final_next_states)
+        # next_states = torch.from_numpy(next_states).cuda()
+        # # non_final_next_states = next_states[musk == 1]
+        # net_outputs = self.policy_net(non_final_next_states)
 
         # Find maximum Q-value of action at next state from policy net
         ### CODE ####
-        next_states_value = torch.zeros(batch_size).cuda()
-        next_states_value[musk == 1] = net_outputs.max(1)[0].detach()
+        # next_states_value = torch.zeros(batch_size).cuda()
+        # next_states_value[musk == 1] = net_outputs.max(1)[0].detach()
         # Compute the Huber Loss
         ### CODE ####
-        expected_state_action_values = rewards + \
-            self.discount_factor * next_states_value
+        # expected_state_action_values = rewards + \
+            # self.discount_factor * next_states_value
 
-        loss = F.smooth_l1_loss(state_action_values,
-                                expected_state_action_values.unsqueeze(1))
+        # loss = F.smooth_l1_loss(state_action_values,
+                                # expected_state_action_values.unsqueeze(1))
         # Optimize the model, .step() both the optimizer and the scheduler!
         ### CODE ####
 
+        # self.optimizer.zero_grad()
+        # loss.backward()
+        # for param in self.policy_net.parameters():
+            # param.grad.data.clamp_(-1, 1)
+        # self.optimizer.step()
+
+        current_Q_values = self.policy_net(states).gather(1, actions.unsqueeze(dim=1))
+
+        with torch.no_grad():
+            # Compute Q function of next state
+            ### CODE ####
+            next_Q_values = self.policy_net(next_states)
+
+            # Find maximum Q-value of action at next state from policy net
+            ### CODE ####
+            # [0] returns the maximal values
+            # [1] returns the argmax
+            max_next_Q_values = next_Q_values.max(dim=1)[0]
+
+        # Temporal difference for loss
+        expected_Q_values = (self.discount_factor * musk * max_next_Q_values) + rewards
+        # print(current_Q_values.size())
+        # print(expected_Q_values.size())
+
+        # Compute the Huber Loss
+        ### CODE ####
+        # current_Q_values is [32, 1]
+        # expected_Q_values is [32]
+        # so we squeeze current Q values
+        loss = self.criterion(current_Q_values.squeeze(dim=-1), expected_Q_values)
+
+        # Optimize the model, .step() both the optimizer and the scheduler!
+        ### CODE ####
         self.optimizer.zero_grad()
         loss.backward()
-        for param in self.policy_net.parameters():
-            param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
-
+        self.scheduler.step()
 
