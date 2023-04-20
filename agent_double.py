@@ -53,7 +53,7 @@ class Agent():
     # after some time interval update the target net to be same with policy net
     def update_target_net(self):
         ### CODE ###
-        self.target_net.load_state_dict(self.polic_net.state_dict())
+        self.target_net.load_state_dict(self.policy_net.state_dict())
 
 
     """Get action using policy net using epsilon-greedy policy"""
