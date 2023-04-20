@@ -13,9 +13,6 @@ from config import *
 import os
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-# TODO - https://github.com/yutong-xie/CS498-DL-Assignment/blob/master/assignment5/agent_double.py
-# TODO - https://github.com/WangLuning/CS498-intro-deep-learning/blob/master/Assignment5/agent.py
-# TODO - https://github.com/tp5uiuc/cs498dl
 
 class Agent():
     def __init__(self, action_size):
