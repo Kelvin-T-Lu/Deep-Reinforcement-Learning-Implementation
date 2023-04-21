@@ -75,11 +75,11 @@ class Agent():
 
         history = np.stack(mini_batch[0], axis=0)
         states = np.float32(history[:, :4, :, :]) / 255.
-        states = torch.from_numpy(states).cuda()
+        states = torch.from_numpy(states).to(device)
         actions = list(mini_batch[1])
-        actions = torch.LongTensor(actions).cuda()
+        actions = torch.LongTensor(actions).to(device)
         rewards = list(mini_batch[2])
-        rewards = torch.FloatTensor(rewards).cuda()
+        rewards = torch.FloatTensor(rewards).to(device)
         next_states = np.float32(history[:, 1:, :, :]) / 255.
         dones = mini_batch[3] # checks if the game is over
         musk = torch.tensor(list(map(int, dones==False)),dtype=torch.uint8)
@@ -89,19 +89,19 @@ class Agent():
             states).gather(1, actions.unsqueeze(1))
 
         # Compute Q function of next state
-        next_states = torch.from_numpy(next_states).cuda()
-        non_final_next_states = next_states[musk]
-        net_outputs = self.policy_net(non_final_next_states)
+        next_states = torch.from_numpy(next_states).to(device)
+        inter_states = next_states[musk]
+        policy_outputs = self.policy_net(inter_states)
 
         # Find maximum Q-value of action at next state from policy net
-        net_outputs = self.target_net(non_final_next_states)
-        next_states_value = torch.zeros(batch_size).cuda()
-        next_states_value[musk] = net_outputs.max(1)[0].detach()
+        policy_outputs = self.target_net(inter_states)
+        next_states_tensors = torch.zeros(batch_size).to(device)
+        next_states_tensors[musk] = policy_outputs.max(1)[0].detach()
 
         # Compute the Huber Loss
-        expected_state_action_values = rewards + self.discount_factor * next_states_value
+        expected_state_action = rewards + self.discount_factor * next_states_tensors
         loss = F.smooth_l1_loss(state_action_values,
-                                expected_state_action_values.unsqueeze(1))
+                                expected_state_action.unsqueeze(1))
 
         # Optimize the model, .step() both the optimizer and the scheduler!
         self.optimizer.zero_grad()

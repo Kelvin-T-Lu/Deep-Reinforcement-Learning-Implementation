@@ -83,8 +83,8 @@ class Agent():
         # Compute Q function of next state
         ### CODE ####
         next_states = torch.from_numpy(next_states).cuda()
-        non_final_next_states = next_states[musk == 1]
-        net_outputs = self.policy_net(non_final_next_states)
+        inter_states = next_states[musk == 1]
+        net_outputs = self.policy_net(inter_states)
 
         # Find maximum Q-value of action at next state from policy net
         ### CODE ####
@@ -92,11 +92,11 @@ class Agent():
         next_states_value[musk == 1] = net_outputs.max(1)[0].detach()
         # Compute the Huber Loss
         ### CODE ####
-        expected_state_action_values = rewards + \
+        expected_state_action = rewards + \
             self.discount_factor * next_states_value
 
         loss = F.smooth_l1_loss(state_action_values,
-                                expected_state_action_values.unsqueeze(1))
+                                expected_state_action.unsqueeze(1))
         # Optimize the model, .step() both the optimizer and the scheduler!
         ### CODE ####
 
